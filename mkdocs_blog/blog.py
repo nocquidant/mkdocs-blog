@@ -1,30 +1,29 @@
-from mkdocs.plugins import BasePlugin
-import os.path
 import datetime
-from jinja2 import Environment
+import os.path
+import re
 
-from . import cleaner
-from . import jinja_filters
-from . import rss
+from jinja2 import Environment
+from mkdocs.plugins import BasePlugin
+
+from . import cleaner, jinja_filters, rss
+
+pattern = ".*(\d{4})/(\d{2})/"
 
 class Blog(BasePlugin):
     def parse_url(self, url):
         try:
-            pieces = url.split('/')
-            year = int(pieces[0])
-            month = int(pieces[1])
-            return (year, month)
-        except ValueError:
-            return None
-        except IndexError:
+            r = re.search(pattern, url)
+            if r:
+                year = int(r.group(1))
+                month = int(r.group(2))
+                return (year, month)
+            else:
+                return None
+        except:
             return None
 
     def on_nav(self, nav, config, files):
         self.nav = nav
-
-        # load all the pages first, so the titles are correct
-        for page in nav.pages:
-            page.read_source(config)
 
         # ordered by time
         ordered = []
@@ -34,6 +33,15 @@ class Blog(BasePlugin):
         for f in files:
             if not f.is_documentation_page():
                 continue
+            
+            # Filter non blog pages
+            if not f.page:
+                continue
+            if not re.match(pattern, str(f.url)) :
+                continue
+
+            # Read title
+            f.page.read_source(config)
 
             parsed = self.parse_url(f.url)
             if parsed:
